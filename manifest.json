@@ -1,0 +1,13 @@
+{
+  "background_color": "#ffffff",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "Meu Catálogo",
+  "orientation": "any",
+  "scope": "/",
+  "short_name": "Meu Catálogo",
+  "start_url": "/",
+  "theme_color": "#ffffff",
+  "description": "Catálogo de mídias físicas",
+  "id": "https://natashaleah464.github.io/Meu-Catalogo/"
+}
