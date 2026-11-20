@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meu Catálogo</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#101014;color:#fff;font-family:Arial,sans-serif}header{padding:24px 18px;background:#19191e;border-bottom:2px solid #b51d30}h1{color:#f04458;margin:0;letter-spacing:2px}small,.muted{color:#aaa}main{max-width:900px;margin:auto;padding:20px}input,select,textarea,button{padding:12px;border-radius:8px;font-size:16px}input,select,textarea{background:#24242c;color:white;border:1px solid #555;width:100%;margin:7px 0}button{background:#bc2339;color:white;border:0;cursor:pointer;margin:3px}button.secondary{background:#444}nav{display:flex;gap:4px;flex-wrap:wrap;margin:18px 0}nav button{background:#303039}nav button.ativo{background:#bc2339}.card{display:flex;gap:16px;background:#202027;padding:16px;border-radius:12px;margin:12px 0;border:1px solid #383840}.card img{width:100px;height:100px;object-fit:cover;border-radius:6px}.card-content{flex:1;min-width:0}.card strong{font-size:19px}.card p{color:#bbb;overflow-wrap:anywhere}#formulario{display:none;background:#202027;padding:16px;border-radius:12px;margin-top:15px}label{display:block;margin-top:10px}.preview{max-width:140px;max-height:180px;object-fit:contain;margin:8px 0}.foto-grupo{padding:12px;border:1px solid #444;border-radius:10px;margin:12px 0}.miniaturas{display:flex;gap:8px;flex-wrap:wrap}.miniaturas img{width:90px;height:90px;object-fit:cover;border-radius:6px}.foto-grupo button{font-size:13px}.marca{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}.marca-subtitulo{font-size:small;color:#ddd;letter-spacing:.5px}textarea{min-height:85px}#aviso{color:#ffb3bd}
+</style>
+</head>
+<body>
+<header><div class="marca"><h1>MEU CATÁLOGO</h1><span class="marca-subtitulo">MÍDIAS FÍSICAS</span></div><small>Minha Biblioteca Particular</small></header>
+<main>
+<input id="busca" placeholder="Pesquisar na minha coleção..." aria-label="Pesquisar">
+<nav id="filtros"></nav>
+<button id="novo" type="button">+ Adicionar item</button>
+<section id="formulario">
+<h2 id="formTitulo">Novo item</h2>
+<label for="titulo">Título</label><input id="titulo" placeholder="Título">
+<label for="artista">Artista, banda ou diretor</label><input id="artista" placeholder="Artista, banda ou diretor">
+<label for="tipo">Formato</label><select id="tipo"><option>CD</option><option>DVD</option><option>Blu-ray</option><option>Vinil</option><option>VHS</option><option>Box</option></select>
+<label for="edicao">Edição</label><input id="edicao" placeholder="Ex.: edição especial, remasterizada">
+<label for="anoOriginal">Ano de lançamento original</label><input id="anoOriginal" inputmode="numeric" placeholder="Ex.: 1998">
+<label for="anoEdicao">Ano da edição</label><input id="anoEdicao" inputmode="numeric" placeholder="Ex.: 2005">
+<label for="pais">País de fabricação</label><input id="pais" placeholder="Ex.: Brasil">
+<label for="detalhes">Ficha técnica</label><textarea id="detalhes" placeholder="Faixas, gravadora, selo, código de barras, duração e informações técnicas..."></textarea>
+<label for="observacoes">Observações pessoais</label><textarea id="observacoes" placeholder="Suas anotações sobre este exemplar..."></textarea>
+<h3>Fotos da sua mídia</h3>
+<div class="foto-grupo"><label for="fotoCapa">Foto da capa</label><input id="fotoCapa" type="file" accept="image/*"><div id="prevCapa" class="miniaturas"></div></div>
+<div class="foto-grupo"><label for="fotoContra">Foto da contracapa</label><input id="fotoContra" type="file" accept="image/*"><div id="prevContra" class="miniaturas"></div></div>
+<div class="foto-grupo"><label for="fotoMidia">Fotos da mídia (discos)</label><input id="fotoMidia" type="file" accept="image/*" multiple><button id="outroDisco" type="button" class="secondary">+ Adicionar outro disco</button><div id="prevMidia" class="miniaturas"></div></div>
+<div class="foto-grupo"><label for="fotoEncarte">Fotos do encarte (várias páginas)</label><input id="fotoEncarte" type="file" accept="image/*" multiple><div id="prevEncarte" class="miniaturas"></div></div>
+<p class="muted">As fotos ficam guardadas neste navegador nesta versão de teste. Fotos muito grandes podem exceder o espaço disponível.</p>
+<p id="aviso" role="status"></p>
+<button id="salvar" type="button">Salvar item</button><button id="cancelar" class="secondary" type="button">Cancelar</button>
+</section>
+<h2>Minha coleção</h2><div id="colecao"></div>
+</main>
+<script>
+const tipos=["Todos","CD","DVD","Blu-ray","Vinil","VHS","Box"];
+const chave="meuCatalogoItens";
+let filtro="Todos",editando=-1;
+let fotosAtuais={capa:"",contracapa:"",midia:[],encarte:[]};
+let itens=[],erroLeitura=false;
+try{const dados=JSON.parse(localStorage.getItem(chave)||"[]");itens=Array.isArray(dados)?dados:[]}catch(e){erroLeitura=true;alert("Não foi possível ler os cadastros antigos. Não faça alterações antes de recuperar seus dados.")}
+const el=id=>document.getElementById(id);
+const campos={capa:["fotoCapa","prevCapa"],contracapa:["fotoContra","prevContra"],midia:["fotoMidia","prevMidia"],encarte:["fotoEncarte","prevEncarte"]};
+function limpar(){
+ ["titulo","artista","edicao","anoOriginal","anoEdicao","pais","detalhes","observacoes"].forEach(id=>el(id).value="");
+ Object.values(campos).forEach(([input])=>el(input).value="");
+ el("tipo").value="CD";el("aviso").textContent="";
+ fotosAtuais={capa:"",contracapa:"",midia:[],encarte:[]};editando=-1;
+ renderFotos();
+}
+function renderFotos(){
+ Object.entries(campos).forEach(([tipo,[,destino]])=>{
+  const area=el(destino);area.replaceChildren();
+  const fotos=(tipo==="encarte"||tipo==="midia")?fotosAtuais[tipo]:[fotosAtuais[tipo]].filter(Boolean);
+  fotos.forEach((src,n)=>{
+   const bloco=document.createElement("div");if(tipo==="midia"){const titulo=document.createElement("div");titulo.textContent="Disco "+(n+1);bloco.appendChild(titulo)}
+   const img=document.createElement("img");img.src=src;img.alt="Prévia de "+tipo;
+   const botao=document.createElement("button");botao.type="button";botao.className="secondary";botao.textContent="Remover";
+   botao.onclick=()=>{if(tipo==="encarte"||tipo==="midia")fotosAtuais[tipo].splice(n,1);else fotosAtuais[tipo]="";renderFotos()};
+   bloco.append(img,botao);area.appendChild(bloco);
+  });
+ });
+}
+function abrir(indice=-1){
+ limpar();editando=indice;
+ if(indice>=0){
+  const i=itens[indice];
+  el("titulo").value=i.titulo||"";el("artista").value=i.artista||"";
+  el("tipo").value=i.tipo||"CD";el("edicao").value=i.edicao||"";
+  el("detalhes").value=i.detalhes||"";
+  el("anoOriginal").value=i.anoOriginal||"";el("anoEdicao").value=i.anoEdicao||"";
+  el("pais").value=i.pais||"";el("observacoes").value=i.observacoes||"";
+  fotosAtuais={capa:i.fotos?.capa||i.foto||"",contracapa:i.fotos?.contracapa||"",midia:Array.isArray(i.fotos?.midia)?[...i.fotos.midia]:(i.fotos?.midia?[i.fotos.midia]:[]),encarte:Array.isArray(i.fotos?.encarte)?[...i.fotos.encarte]:[]};
+  renderFotos();
+ }
+ el("formTitulo").textContent=indice>=0?"Editar item":"Novo item";
+ el("formulario").style.display="block";el("formulario").scrollIntoView({behavior:"smooth"});
+}
+function fechar(){el("formulario").style.display="none";limpar()}
+el("novo").onclick=()=>abrir();el("cancelar").onclick=fechar;
+Object.entries(campos).forEach(([tipo,[input]])=>{
+ el(input).addEventListener("change",async e=>{
+  const arquivos=Array.from(e.target.files);
+  if(!arquivos.length)return;
+  el("aviso").textContent="Preparando fotografias...";
+  try{
+   const imagens=[];
+   for(const arquivo of arquivos){
+    if(!arquivo.type.startsWith("image/"))throw new Error("Selecione somente imagens.");
+    imagens.push(await reduzirImagem(arquivo));
+   }
+   if(tipo==="encarte"||tipo==="midia")fotosAtuais[tipo].push(...imagens);
+   else fotosAtuais[tipo]=imagens[0];
+   el("aviso").textContent="";renderFotos();
+  }catch(err){el("aviso").textContent=err.message||"Não foi possível preparar a foto."}
+  e.target.value="";
+ });
+});
+el("outroDisco").onclick=()=>el("fotoMidia").click();
+function reduzirImagem(file){return new Promise((resolve,reject)=>{const url=URL.createObjectURL(file),img=new Image();img.onload=()=>{try{const escala=Math.min(1,900/Math.max(img.width,img.height));const canvas=document.createElement("canvas");canvas.width=Math.max(1,Math.round(img.width*escala));canvas.height=Math.max(1,Math.round(img.height*escala));canvas.getContext("2d").drawImage(img,0,0,canvas.width,canvas.height);resolve(canvas.toDataURL("image/jpeg",0.75))}catch(e){reject(e)}finally{URL.revokeObjectURL(url)}};img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error("Imagem inválida"))};img.src=url})}
+el("salvar").onclick=()=>{const titulo=el("titulo").value.trim();if(!titulo){el("aviso").textContent="Digite o título.";return}if(erroLeitura){el("aviso").textContent="Os dados anteriores não foram lidos. Não é seguro salvar.";return}const item={titulo,artista:el("artista").value.trim(),tipo:el("tipo").value,edicao:el("edicao").value.trim(),anoOriginal:el("anoOriginal").value.trim(),anoEdicao:el("anoEdicao").value.trim(),pais:el("pais").value.trim(),observacoes:el("observacoes").value.trim(),detalhes:el("detalhes").value.trim(),foto:fotosAtuais.capa,fotos:{...fotosAtuais,midia:[...fotosAtuais.midia],encarte:[...fotosAtuais.encarte]}};const novos=[...itens];if(editando>=0)novos[editando]=item;else novos.push(item);try{localStorage.setItem(chave,JSON.stringify(novos));itens=novos;fechar();mostrar()}catch(e){el("aviso").textContent="Espaço insuficiente para salvar esta foto. Escolha uma foto menor. O cadastro anterior foi preservado."}};
+function excluir(indice){if(erroLeitura){alert("Não é seguro excluir enquanto houver erro na leitura dos dados.");return}if(!confirm('Excluir "'+itens[indice].titulo+'" da coleção? Esta ação não pode ser desfeita.'))return;const novos=itens.filter((_,n)=>n!==indice);try{localStorage.setItem(chave,JSON.stringify(novos));itens=novos;mostrar()}catch(e){alert("Não foi possível excluir o item.")}}
+function mostrar(){const nav=el("filtros");nav.replaceChildren();tipos.forEach(t=>{const b=document.createElement("button");b.type="button";b.textContent=t;b.className=filtro===t?"ativo":"";b.onclick=()=>{filtro=t;mostrar()};nav.appendChild(b)});const busca=el("busca").value.toLocaleLowerCase("pt-BR");const area=el("colecao");area.replaceChildren();const lista=itens.map((i,indice)=>({i,indice})).filter(({i})=>(filtro==="Todos"||i.tipo===filtro)&&[i.titulo,i.artista,i.edicao,i.anoOriginal,i.anoEdicao,i.pais,i.detalhes,i.observacoes].join(" ").toLocaleLowerCase("pt-BR").includes(busca)).sort((a,b)=>(a.i.titulo||"").localeCompare(b.i.titulo||"","pt-BR"));if(!lista.length){area.textContent="Nenhum item encontrado.";return}lista.forEach(({i,indice})=>{const card=document.createElement("div");card.className="card";if(i.fotos?.capa||i.foto){const img=document.createElement("img");img.src=i.fotos?.capa||i.foto;img.alt="Foto de "+i.titulo;card.appendChild(img)}const corpo=document.createElement("div");corpo.className="card-content";const nome=document.createElement("strong");nome.textContent=i.titulo;const info=document.createElement("p");info.textContent=[i.tipo,i.artista,i.edicao,i.anoOriginal&&("Original: "+i.anoOriginal),i.anoEdicao&&("Edição: "+i.anoEdicao),i.pais].filter(Boolean).join(" • ");corpo.append(nome,info);if(i.detalhes){const detalhes=document.createElement("p");detalhes.textContent=i.detalhes;corpo.appendChild(detalhes)}if(i.observacoes){const obs=document.createElement("p");obs.textContent="Observações: "+i.observacoes;corpo.appendChild(obs)}const editar=document.createElement("button");editar.textContent="Editar";editar.onclick=()=>abrir(indice);const apagar=document.createElement("button");apagar.textContent="Excluir";apagar.className="secondary";apagar.onclick=()=>excluir(indice);const galeria=[["Capa",i.fotos?.capa||i.foto],["Contracapa",i.fotos?.contracapa],...(Array.isArray(i.fotos?.midia)?i.fotos.midia:(i.fotos?.midia?[i.fotos.midia]:[])).map((foto,n)=>["Disco "+(n+1),foto]),...(i.fotos?.encarte||[]).map((foto,n)=>["Encarte "+(n+1),foto])].filter(([,src])=>src);
+if(galeria.length){const faixa=document.createElement("div");faixa.className="miniaturas";galeria.forEach(([nome,src])=>{const foto=document.createElement("img");foto.src=src;foto.alt=nome;foto.title=nome;faixa.appendChild(foto)});corpo.appendChild(faixa)}
+corpo.append(editar,apagar);card.appendChild(corpo);area.appendChild(card)})}
+el("busca").addEventListener("input",mostrar);mostrar();
+</script>
+</body>
+</html>
